@@ -307,3 +307,27 @@ class SimpleAuthenticator(BaseAuthenticator):
             return data['username']
         else:
             return None
+        
+
+class IAPAuthenticator(BaseAuthenticator):
+    """A demo of a possible implementation. It redirects users to a
+    simple HTML form where they can type their username and password.
+
+    Note: Consider this an example. In your production setting you would
+    probably want to redirect to your custom login page. Make sure that
+    this page submits data to ``/auth/{provider}/authorize`` endpoint."""
+
+    provider = "google_iap"
+    handler_cls = FormHandlers
+
+    def configure(self, config):
+        self.is_enabled = True
+
+        super().configure(config)
+        print("configure")
+
+    async def authenticate(
+        self, request: Request, data=None, dao=None, config=None, **kwargs
+    ) -> Optional[str]:
+        print(request.headers)
+        

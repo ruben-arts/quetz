@@ -1,0 +1,29 @@
+[project]
+name = "quetz"
+version = "0.9.2"
+description = "The fast conda package server!"
+authors = ["Quetz developers"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
+
+[tasks]
+install = "pip install -e '.[dev]'"
+init_demo = { cmd = "quetz create --create-conf --dev ./demo", depends_on = ["install"] }
+start_demo = { cmd = "quetz start ./demo" }
+test = { cmd = "pytest -v quetz/"}
+typecheck = { cmd = "mypy quetz"}
+
+[dependencies]
+python = ">=3.7"
+pip = "*"
+pre-commit = "3.4.0.*"
+mamba = "1.5.1.*"
+
+[target.linux-64.dependencies]
+xattr = "*"
+
+[target.osx-64.dependencies]
+xattr = "*"
+
+[target.osx-arm64.dependencies]
+xattr = "*"

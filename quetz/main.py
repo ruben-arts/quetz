@@ -34,7 +34,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse
 from importlib_metadata import entry_points
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -57,7 +57,7 @@ from quetz import (
     metrics,
     rest_models,
 )
-from quetz.authentication import AuthenticatorRegistry, BaseAuthenticator
+from quetz.authentication import AuthenticatorRegistry, BaseAuthenticator, IAPAuthenticator
 from quetz.authentication import github as auth_github
 from quetz.authentication import gitlab as auth_gitlab
 from quetz.authentication import google as auth_google
@@ -159,9 +159,29 @@ class CondaTokenMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         return response
+    
+class GoogleIAPSessionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        user_email = request.headers.get('X-Goog-Authenticated-User-Email', None)
+        user_id = request.headers.get('X-Goog-Authenticated-User-Id', None)
+        
+        if not user_email or not user_id:
+            return JSONResponse(status_code=401, content={"detail": "Google IAP headers not found."})
 
+        # if not user_email or not user_id:
+        #     # If you want to block requests without these headers, raise an exception.
+        #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Google IAP headers not found.")
+        
+        # For demo purposes, set the user details in request.state for the lifecycle of the request
+        # # You might want to use proper session management in a real-world application
+        request.state.user_email = user_email.split(":")[-1]  # Extracting 'example@gmail.com'
+        request.state.user_id = user_id.split(":")[-1]  # Extracting 'userIDvalue'
+        
+        response = await call_next(request)
+        return response
 
-app.add_middleware(CondaTokenMiddleware)
+# app.add_middleware(CondaTokenMiddleware)
+app.add_middleware(GoogleIAPSessionMiddleware)
 
 
 if config.configured_section("profiling") and config.profiling_enable_sampling:
@@ -198,6 +218,7 @@ builtin_authenticators: List[Type[BaseAuthenticator]] = [
         JupyterhubAuthenticator,
         PAMAuthenticator,
         AzureADAuthenticator,
+        IAPAuthenticator,
     ]
     if authenticator is not None
 ]
@@ -239,6 +260,7 @@ async def check_token_revocation(session):
         valid = await auth_obj.validate_token(session.get("token"))
     if not valid:
         logout(session)
+        print("check_token_revocation not valid")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not logged in",
@@ -291,7 +313,7 @@ async def me(
     auth: authorization.Rules = Depends(get_rules),
 ):
     """Returns your quetz profile"""
-
+    print("me")
     # Check if token is still valid
     await check_token_revocation(session)
 

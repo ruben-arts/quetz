@@ -63,6 +63,8 @@ def get_dao(db: Session = Depends(get_db)):
 
 
 def get_session(request: Request):
+    # Check of iap session headers
+    request.headers.get("")
     return request.session
 
 
